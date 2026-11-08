@@ -79,6 +79,7 @@ find_version_from_git_tags() {
         local version_list
         check_git
         check_packages ca-certificates
+        echo git ls-remote --tags "${repository}" | grep -oP "${regex}" | tr -d ' ' | tr "${separator}" "." | sed "s/\([a-zA-Z]\+\)/-\1-/g" | sort -t - -k 1,1Vr -k 2,2 -k 3,3nr | sed "s/-//g"
         version_list="$(git ls-remote --tags "${repository}" | grep -oP "${regex}" | tr -d ' ' | tr "${separator}" "." | sed "s/\([a-zA-Z]\+\)/-\1-/g" | sort -t - -k 1,1Vr -k 2,2 -k 3,3nr | sed "s/-//g")"
         if [ "${requested_version}" = "latest" ] || [ "${requested_version}" = "current" ] || [ "${requested_version}" = "lts" ]; then
             declare -g "${variable_name}"="$(echo "${version_list}" | head -n 1)"
@@ -97,12 +98,12 @@ find_version_from_git_tags() {
 
 export DEBIAN_FRONTEND=noninteractive
 
-find_version_from_git_tags JADX_VERSION "https://github.com/skylot/jadx" "tags/jadx-" "." "true" "${jadx_version_suffix}"
+find_version_from_git_tags JADX_VERSION "https://github.com/skylot/jadx" "tags/v" "." "true" "${jadx_version_suffix}"
 
 if [ "${JADX_VERSION}" != "none" ]; then
     check_packages curl ca-certificates
     echo "Downloading jadx ${JADX_VERSION}..."
-    curl -fsL "https://github.com/skylot-jadx/releases/download/${JADX_VERSION}/jadx-${JADX_VERSION}.zip" -o /tmp/jadx.zip
+    curl -fsL "https://github.com/skylot/jadx/releases/download/v${JADX_VERSION}/jadx-${JADX_VERSION}.zip" -o /tmp/jadx.zip
     mkdir -p /opt
     unzip -q /tmp/jadx.zip -d /opt/jadx
     chmod +x /opt/jadx/bin/*
