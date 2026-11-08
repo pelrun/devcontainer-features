@@ -1,0 +1,23 @@
+{
+	"name": "jadx",
+	"id": "jadx",
+	"version": "1.0.0",
+	"description": "Installs jadx",
+	"documentationURL": "https://github.com/pelrun/devcontainer-features/tree/main/src/jadx",
+	"options": {
+		"jadxVersion": {
+			"type": "string",
+			"proposals": [
+				"latest",
+				"1",
+				"none"
+			],
+			"default": "latest",
+			"description": "Select version of jadx."
+		}
+	},
+	"installsAfter": [
+		"ghcr.io/devcontainers/features/common-utils"
+	]
+}
+
