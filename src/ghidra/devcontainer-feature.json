@@ -1,0 +1,23 @@
+{
+	"name": "ghidra",
+	"id": "ghidra",
+	"version": "1.0.0",
+	"description": "Installs ghidra",
+	"documentationURL": "https://github.com/pelrun/devcontainer-features/tree/main/src/ghidra",
+	"options": {
+		"version": {
+			"type": "string",
+			"proposals": [
+				"latest",
+				"1",
+				"none"
+			],
+			"default": "latest",
+			"description": "Select version of ghidra."
+		}
+	},
+	"installsAfter": [
+		"ghcr.io/devcontainers/features/common-utils"
+	]
+}
+
