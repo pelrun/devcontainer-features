@@ -1,0 +1,23 @@
+{
+	"name": "pi coding agent",
+	"id": "pi",
+	"version": "1.0.0",
+	"description": "Installs the pi coding agent (@earendil-works/pi-coding-agent) globally via npm. Requires the node feature.",
+	"options": {
+		"version": {
+			"type": "string",
+			"proposals": [
+				"latest"
+			],
+			"default": "latest",
+			"description": "pi-coding-agent npm package version to install."
+		}
+	},
+	"dependsOn": {
+		"ghcr.io/devcontainers/features/node:2": {}
+	},
+	"installsAfter": [
+		"ghcr.io/devcontainers/features/common-utils",
+		"ghcr.io/devcontainers/features/node:2"
+	]
+}

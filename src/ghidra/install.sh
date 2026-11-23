@@ -107,6 +107,7 @@ if [ "${VERSION}" != "none" ]; then
     #curl -fsL "https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_${VERSION}_build/Ghidra-${VERSION}_PUBLIC_xxxxxxx.zip" -o /tmp/ghidra.zip
     mkdir -p /opt
     unzip -q /tmp/ghidra.zip -d /opt/ghidra
+    mv /opt/ghidra/ghidra*/* /opt/ghidra
 fi
 
 # Clean up

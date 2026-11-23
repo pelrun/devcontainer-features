@@ -103,7 +103,7 @@ find_version_from_git_tags JADX_VERSION "https://github.com/skylot/jadx" "tags/v
 if [ "${JADX_VERSION}" != "none" ]; then
     check_packages curl ca-certificates
     echo "Downloading jadx ${JADX_VERSION}..."
-    curl -fsL "https://github.com/skylot/jadx/releases/download/v${JADX_VERSION}/jadx-${JADX_VERSION}.zip" -o /tmp/jadx.zip
+    curl -fL "https://github.com/skylot/jadx/releases/download/v${JADX_VERSION}/jadx-${JADX_VERSION}.zip" -o /tmp/jadx.zip
     mkdir -p /opt
     unzip -q /tmp/jadx.zip -d /opt/jadx
     chmod +x /opt/jadx/bin/*

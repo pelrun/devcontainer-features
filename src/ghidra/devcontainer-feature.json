@@ -18,6 +18,9 @@
 	},
 	"installsAfter": [
 		"ghcr.io/devcontainers/features/common-utils"
-	]
+	],
+	"containerEnv": {
+		"GHIDRA_INSTALL_DIR": "/opt/ghidra"
+	}
 }
 

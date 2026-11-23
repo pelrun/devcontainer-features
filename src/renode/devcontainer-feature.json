@@ -1,0 +1,21 @@
+{
+  "name": "Renode",
+  "id": "renode",
+  "version": "1.0.0",
+  "description": "Installs Renode portable simulator, GTK/X11 dependencies, and Robot Framework test requirements.",
+  "options": {
+    "version": {
+      "type": "string",
+      "proposals": [
+        "1.17.0",
+        "1.16.0"
+      ],
+      "default": "1.17.0",
+      "description": "Select the Renode version to install"
+    }
+  },
+  "installsAfter": [
+    "ghcr.io/devcontainers/features/common-utils"
+  ]
+}
+
