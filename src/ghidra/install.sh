@@ -58,53 +58,75 @@ check_git() {
     fi
 }
 
-find_version_from_git_tags() {
-    local variable_name=$1
-    local requested_version=${!variable_name}
-    if [ "${requested_version}" = "none" ]; then return; fi
-    local repository=$2
-    local prefix=${3:-"tags/v"}
-    local separator=${4:-"."}
-    local last_part_optional=${5:-"false"}
-    local suffix=${6:-""}
-    if [ "$(echo "${requested_version}" | grep -o "." | wc -l)" != "2" ]; then
-        local escaped_separator=${separator//./\\.}
-        local last_part
-        if [ "${last_part_optional}" = "true" ]; then
-            last_part="(${escaped_separator}[0-9]+)*?"
-        else
-            last_part="${escaped_separator}[0-9]+"
-        fi
-        local regex="${prefix}\\K[0-9]+${escaped_separator}[0-9]+${last_part}${suffix}$"
-        local version_list
-        check_git
-        check_packages ca-certificates
-        echo git ls-remote --tags "${repository}" | grep -oP "${regex}" | tr -d ' ' | tr "${separator}" "." | sed "s/\([a-zA-Z]\+\)/-\1-/g" | sort -t - -k 1,1Vr -k 2,2 -k 3,3nr | sed "s/-//g"
-        version_list="$(git ls-remote --tags "${repository}" | grep -oP "${regex}" | tr -d ' ' | tr "${separator}" "." | sed "s/\([a-zA-Z]\+\)/-\1-/g" | sort -t - -k 1,1Vr -k 2,2 -k 3,3nr | sed "s/-//g")"
-        if [ "${requested_version}" = "latest" ] || [ "${requested_version}" = "current" ] || [ "${requested_version}" = "lts" ]; then
-            declare -g "${variable_name}"="$(echo "${version_list}" | head -n 1)"
-        else
-            set +e
-            declare -g "${variable_name}"="$(echo "${version_list}" | grep -E -m 1 "^${requested_version//./\\.}([\\.\\s]|$)")"
-            set -e
-        fi
-    fi
-    if [ -z "${!variable_name}" ] || ! echo "${version_list}" | grep "^${!variable_name//./\\.}$" >/dev/null 2>&1; then
-        echo -e "Invalid ${variable_name} value: ${requested_version}\nValid values:\n${version_list}" >&2
-        exit 1
-    fi
-    echo "${variable_name}=${!variable_name}"
-}
-
 export DEBIAN_FRONTEND=noninteractive
 
-find_version_from_git_tags VERSION "https://github.com/NationalSecurityAgency/ghidra" "tags/Ghidra_" "." "true" "_build"
+GHIDRA_API="https://api.github.com/repos/NationalSecurityAgency/ghidra"
+
+# Resolve which Ghidra version to install. Release tags are strictly
+# Ghidra_<version>_build, but asset filenames embed a build date
+# (ghidra_X.Y_PUBLIC_YYYYMMDD.zip), so neither the tag nor the URL can be
+# derived by string substitution: versions come from git tags / the releases
+# API, and the URL is taken from the API's asset listing.
+RESOLVE_VERSION="none"
+DOWNLOAD_URL=""
 
 if [ "${VERSION}" != "none" ]; then
-    check_packages curl ca-certificates
-    echo "Downloading Ghidra ${VERSION}..."
-    curl -fsL https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_12.2_build/ghidra_12.2_PUBLIC_20261016.zip -o /tmp/ghidra.zip
-    #curl -fsL "https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_${VERSION}_build/Ghidra-${VERSION}_PUBLIC_xxxxxxx.zip" -o /tmp/ghidra.zip
+    if [ "${VERSION}" = "latest" ] || [ -z "${VERSION}" ] || [ "${VERSION}" = "current" ]; then
+        # newest non-prerelease release: tag and asset URL from the same response
+        echo "Resolving latest Ghidra release via GitHub API..."
+        if ! release_json="$(curl -fsSL "${GHIDRA_API}/releases/latest")"; then
+            echo "(!) GitHub releases API request failed: ${GHIDRA_API}/releases/latest" >&2
+            echo "    Check your network or the GitHub API rate limit." >&2
+            exit 1
+        fi
+        RESOLVE_VERSION="$(printf '%s\n' "${release_json}" \
+            | grep -oE '"tag_name":[[:space:]]*"Ghidra_[^"]*_build"' \
+            | head -n 1 | sed -E 's/.*Ghidra_([^"]*)_build.*/\1/')"
+        DOWNLOAD_URL="$(printf '%s\n' "${release_json}" \
+            | grep -oE '"browser_download_url":[[:space:]]*"[^"]*"' \
+            | grep -oE 'https://[^"]*ghidra_[^"]*_PUBLIC_[^"]*\.zip' \
+            | head -n 1)"
+    else
+        # concrete or partial version (e.g. 12, 12.1, 12.1.4): newest tag matching prefix
+        check_git
+        tags="$(git ls-remote --tags https://github.com/NationalSecurityAgency/ghidra \
+            | grep -oE 'refs/tags/Ghidra_[0-9][0-9.]*_build$' \
+            | sed -E 's|refs/tags/Ghidra_||; s|_build$||' \
+            | sort -rV)"
+        if [ -z "${tags}" ]; then
+            echo "(!) Could not list Ghidra release tags from github.com." >&2
+            exit 1
+        fi
+        RESOLVE_VERSION="$(echo "${tags}" | grep -E "^${VERSION//./\.}([.]|$)" | head -n 1)"
+        if [ -z "${RESOLVE_VERSION}" ]; then
+            echo "(!) Unknown Ghidra version '${VERSION}'. Available versions:" >&2
+            echo "${tags}" | sed 's/^/    /' >&2
+            exit 1
+        fi
+    fi
+fi
+
+if [ "${RESOLVE_VERSION}" != "none" ]; then
+    check_packages curl ca-certificates unzip
+    if [ -z "${DOWNLOAD_URL}" ]; then
+        api_url="${GHIDRA_API}/releases/tags/Ghidra_${RESOLVE_VERSION}_build"
+        echo "Resolving Ghidra ${RESOLVE_VERSION} download URL via GitHub API..."
+        if ! release_json="$(curl -fsSL "${api_url}")"; then
+            echo "(!) GitHub releases API request failed: ${api_url}" >&2
+            echo "    Check the version, your network, or the GitHub API rate limit." >&2
+            exit 1
+        fi
+        DOWNLOAD_URL="$(printf '%s\n' "${release_json}" \
+            | grep -oE '"browser_download_url":[[:space:]]*"[^"]*"' \
+            | grep -oE 'https://[^"]*ghidra_[^"]*_PUBLIC_[^"]*\.zip' \
+            | head -n 1)"
+    fi
+    if [ -z "${DOWNLOAD_URL}" ]; then
+        echo "(!) No Ghidra .zip asset found in the release (version: ${RESOLVE_VERSION})." >&2
+        exit 1
+    fi
+    echo "Downloading Ghidra ${RESOLVE_VERSION} from ${DOWNLOAD_URL}..."
+    curl -fsL "${DOWNLOAD_URL}" -o /tmp/ghidra.zip
     mkdir -p /opt
     unzip -q /tmp/ghidra.zip -d /opt/ghidra
     mv /opt/ghidra/ghidra*/* /opt/ghidra
