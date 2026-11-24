@@ -2,7 +2,7 @@
 
 VERSION=${VERSION:-"latest"}
 USERNAME=${USERNAME:-${_REMOTE_USER:-"automatic"}}
-MCP_SERVER=${MCPSERVER:-"ghidramcp"}
+MCP_SERVER=${MCPSERVER:-"ghidrassist"}
 
 case "${MCP_SERVER}" in
     ghidramcp|ghidrassist) ;;
