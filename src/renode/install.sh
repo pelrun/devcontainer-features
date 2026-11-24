@@ -36,11 +36,10 @@ fi
 #https://github.com/renode/renode/releases/download/v1.17.0/renode-1.17.0.linux-portable.tar.gz
 DOWNLOAD_URL="https://github.com/renode/renode/releases/download/v${RENODE_VERSION}/${ARCHIVE_NAME}"
 
-# Artifacts persist in /tmp across rebuilds (builder layer cache): -C -
-# resumes partial files, -z skips when the local copy is already current.
-curl -fsSL -C - -z /tmp/renode.tar.gz "${DOWNLOAD_URL}" -o /tmp/renode.tar.gz
+curl -fsSL "${DOWNLOAD_URL}" -o /tmp/renode.tar.gz
 mkdir -p /opt/renode
 tar -xzf /tmp/renode.tar.gz -C /opt/renode --strip-components=1
+rm -f /tmp/renode.tar.gz
 
 ln -sf /opt/renode/renode /usr/local/bin/renode
 ln -sf /opt/renode/renode-test /usr/local/bin/renode-test

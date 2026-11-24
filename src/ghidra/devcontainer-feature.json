@@ -1,7 +1,7 @@
 {
 	"name": "ghidra",
 	"id": "ghidra",
-	"version": "1.4.1",
+	"version": "1.4.0",
 	"description": "Installs Ghidra plus the GhidraMCP stack: extension (headless auto-enabled), MCP bridge via uv tool (/usr/local/bin/bridge-mcp-ghidra), and PyGhidra enrollment. URL resolved via the GitHub releases API.",
 	"documentationURL": "https://github.com/pelrun/devcontainer-features/tree/main/src/ghidra",
 	"options": {

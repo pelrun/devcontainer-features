@@ -130,24 +130,11 @@ if [ "${RESOLVE_VERSION}" != "none" ]; then
         echo "(!) No Ghidra .zip asset found in the release (version: ${RESOLVE_VERSION})." >&2
         exit 1
     fi
-    # Downloads persist in /tmp across rebuilds (builder layer cache): -C -
-    # resumes partial files, -z skips when the local copy is already current,
-    # and the artifacts are deliberately kept. Artifact names embed the
-    # version so a cached copy never mixes with a different release.
-    ghidra_zip="/tmp/ghidra-${RESOLVE_VERSION}.zip"
     echo "Downloading Ghidra ${RESOLVE_VERSION} from ${DOWNLOAD_URL}..."
-    curl -fsL -C - -z "${ghidra_zip}" "${DOWNLOAD_URL}" -o "${ghidra_zip}"
-    # Skip extraction when this exact version is already installed; reset the
-    # target when switching versions so two releases never mix.
-    if [ -x /opt/ghidra/ghidraRun ] \
-        && grep -q "^application.version=${RESOLVE_VERSION}$" /opt/ghidra/Ghidra/application.properties 2>/dev/null; then
-        echo "Ghidra ${RESOLVE_VERSION} already present at /opt/ghidra; skipping extraction"
-    else
-        rm -rf /opt/ghidra
-        mkdir -p /opt
-        unzip -qo "${ghidra_zip}" -d /opt/ghidra
-        mv /opt/ghidra/ghidra*/* /opt/ghidra
-    fi
+    curl -fsL "${DOWNLOAD_URL}" -o /tmp/ghidra.zip
+    mkdir -p /opt
+    unzip -q /tmp/ghidra.zip -d /opt/ghidra
+    mv /opt/ghidra/ghidra*/* /opt/ghidra
     GHIDRA_INSTALL_DIR="/opt/ghidra"
 
     # --- MCP server stack (option MCPSERVER) ---------------------------------
@@ -168,15 +155,17 @@ if [ "${RESOLVE_VERSION}" != "none" ]; then
     fi
 
     echo "Installing GhidraMCP extension ${GHIDRA_MCP_RELEASE} into /opt/ghidra..."
-    curl -fsSL -C - -z /tmp/GhidraMCP.zip "https://github.com/bethington/ghidra-mcp/releases/download/${GHIDRA_MCP_RELEASE}/GhidraMCP-${ghidra_mcp_ver}.zip" -o /tmp/GhidraMCP.zip
+    curl -fsSL "https://github.com/bethington/ghidra-mcp/releases/download/${GHIDRA_MCP_RELEASE}/GhidraMCP-${ghidra_mcp_ver}.zip" -o /tmp/GhidraMCP.zip
     mkdir -p /opt/ghidra/Ghidra/Extensions
     unzip -qo /tmp/GhidraMCP.zip -d /opt/ghidra/Ghidra/Extensions
+    rm -f /tmp/GhidraMCP.zip
 
     echo "Installing ghidra_mcp_bridge ${ghidra_mcp_ver} via uv tool..."
     bridge_wheel="/tmp/ghidra_mcp_bridge-${ghidra_mcp_ver}-py3-none-any.whl"
-    curl -fsSL -C - -z "${bridge_wheel}" "https://github.com/bethington/ghidra-mcp/releases/download/${GHIDRA_MCP_RELEASE}/ghidra_mcp_bridge-${ghidra_mcp_ver}-py3-none-any.whl" -o "${bridge_wheel}"
+    curl -fsSL "https://github.com/bethington/ghidra-mcp/releases/download/${GHIDRA_MCP_RELEASE}/ghidra_mcp_bridge-${ghidra_mcp_ver}-py3-none-any.whl" -o "${bridge_wheel}"
     export UV_TOOL_DIR=/opt/uv-tools UV_TOOL_BIN_DIR=/usr/local/bin
     uv tool install "${bridge_wheel}"
+    rm -f "${bridge_wheel}"
 
     elif [ "${MCP_SERVER}" = "ghidrassist" ]; then
         # Native MCP server extension - no separate bridge. Release assets are
@@ -194,9 +183,10 @@ if [ "${RESOLVE_VERSION}" != "none" ]; then
             exit 1
         fi
         echo "Installing GhidrAssistMCP from ${ga_url}..."
-        curl -fsSL -C - -z /tmp/GhidrAssistMCP.zip "${ga_url}" -o /tmp/GhidrAssistMCP.zip
+        curl -fsSL "${ga_url}" -o /tmp/GhidrAssistMCP.zip
         mkdir -p /opt/ghidra/Ghidra/Extensions
         unzip -qo /tmp/GhidrAssistMCP.zip -d /opt/ghidra/Ghidra/Extensions
+        rm -f /tmp/GhidrAssistMCP.zip
     fi
 
     # --- PyGhidra enrollment -------------------------------------------------
