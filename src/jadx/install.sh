@@ -101,7 +101,7 @@ export DEBIAN_FRONTEND=noninteractive
 find_version_from_git_tags JADX_VERSION "https://github.com/skylot/jadx" "tags/v" "." "true" "${jadx_version_suffix}"
 
 if [ "${JADX_VERSION}" != "none" ]; then
-    check_packages curl ca-certificates
+    check_packages curl ca-certificates unzip
     echo "Downloading jadx ${JADX_VERSION}..."
     curl -fL "https://github.com/skylot/jadx/releases/download/v${JADX_VERSION}/jadx-${JADX_VERSION}.zip" -o /tmp/jadx.zip
     mkdir -p /opt
