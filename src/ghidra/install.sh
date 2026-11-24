@@ -130,6 +130,54 @@ if [ "${RESOLVE_VERSION}" != "none" ]; then
     mkdir -p /opt
     unzip -q /tmp/ghidra.zip -d /opt/ghidra
     mv /opt/ghidra/ghidra*/* /opt/ghidra
+    GHIDRA_INSTALL_DIR="/opt/ghidra"
+
+    # --- GhidraMCP: extension + MCP bridge (bethington fork) ----------------
+    # The MCP server has two halves: a Ghidra extension that exposes an HTTP
+    # API, and a python bridge that speaks MCP over stdio. Headless Ghidra
+    # auto-enables extensions placed in Ghidra/Extensions, so unpacking the
+    # zip there is all that is needed. The bridge is installed system-wide via
+    # `uv tool` (self-provisioned: features run at build time, before any
+    # post-create uv), with tool dirs relocated out of /root so the vscode
+    # user can execute /usr/local/bin/bridge-mcp-ghidra.
+    GHIDRA_MCP_RELEASE="v7.0.0"   # extension.properties says built for Ghidra 12.1.4;
+                                   # bump when a release targets the newer installed Ghidra
+    ghidra_mcp_ver="${GHIDRA_MCP_RELEASE#v}"
+
+    if ! command -v uv >/dev/null 2>&1; then
+        echo "Installing uv (required for the GhidraMCP bridge)..."
+        curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=/usr/local/bin sh
+    fi
+
+    echo "Installing GhidraMCP extension ${GHIDRA_MCP_RELEASE} into /opt/ghidra..."
+    curl -fsSL "https://github.com/bethington/ghidra-mcp/releases/download/${GHIDRA_MCP_RELEASE}/GhidraMCP-${ghidra_mcp_ver}.zip" -o /tmp/GhidraMCP.zip
+    mkdir -p /opt/ghidra/Ghidra/Extensions
+    unzip -qo /tmp/GhidraMCP.zip -d /opt/ghidra/Ghidra/Extensions
+    rm -f /tmp/GhidraMCP.zip
+
+    echo "Installing ghidra_mcp_bridge ${ghidra_mcp_ver} via uv tool..."
+    bridge_wheel="/tmp/ghidra_mcp_bridge-${ghidra_mcp_ver}-py3-none-any.whl"
+    curl -fsSL "https://github.com/bethington/ghidra-mcp/releases/download/${GHIDRA_MCP_RELEASE}/ghidra_mcp_bridge-${ghidra_mcp_ver}-py3-none-any.whl" -o "${bridge_wheel}"
+    export UV_TOOL_DIR=/opt/uv-tools UV_TOOL_BIN_DIR=/usr/local/bin
+    uv tool install "${bridge_wheel}"
+    rm -f "${bridge_wheel}"
+
+    # --- PyGhidra enrollment -------------------------------------------------
+    # Ghidra's Python support needs one-time enrollment: a dedicated venv under
+    # the user's Ghidra settings dir with the bundled pyghidra package pip-
+    # installed into it. Answers are piped (y/y) for non-interactive builds.
+    check_packages python3 python3-venv python3-pip
+    PYGHIDRA_LAUNCHER="${GHIDRA_INSTALL_DIR}/Ghidra/Features/PyGhidra/support/pyghidra_launcher.py"
+    if [ -f "${PYGHIDRA_LAUNCHER}" ]; then
+        echo "Enrolling PyGhidra for user ${USERNAME}..."
+        if [ "${USERNAME}" != "root" ]; then
+            runuser -u "${USERNAME}" -- env HOME="/home/${USERNAME}" bash -c "printf 'y\ny\n' | python3 '${PYGHIDRA_LAUNCHER}' '${GHIDRA_INSTALL_DIR}' -H" >/dev/null 2>&1 \
+                || echo "(!) PyGhidra enrollment failed; run pyghidraRun once interactively" >&2
+        else
+            printf 'y\ny\n' | python3 "${PYGHIDRA_LAUNCHER}" "${GHIDRA_INSTALL_DIR}" -H >/dev/null 2>&1 \
+                || echo "(!) PyGhidra enrollment failed; run pyghidraRun once interactively" >&2
+        fi
+    fi
 fi
 
 # Clean up

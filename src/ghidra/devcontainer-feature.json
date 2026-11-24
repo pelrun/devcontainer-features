@@ -1,8 +1,8 @@
 {
 	"name": "ghidra",
 	"id": "ghidra",
-	"version": "1.1.0",
-	"description": "Installs Ghidra. Resolves the download URL dynamically via the GitHub releases API (release assets embed a build date).",
+	"version": "1.2.0",
+	"description": "Installs Ghidra plus the GhidraMCP stack: extension (headless auto-enabled), MCP bridge via uv tool (/usr/local/bin/bridge-mcp-ghidra), and PyGhidra enrollment. URL resolved via the GitHub releases API.",
 	"documentationURL": "https://github.com/pelrun/devcontainer-features/tree/main/src/ghidra",
 	"options": {
 		"version": {
