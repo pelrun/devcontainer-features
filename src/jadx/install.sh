@@ -107,7 +107,7 @@ if [ "${JADX_VERSION}" != "none" ]; then
     mkdir -p /opt
     unzip -q /tmp/jadx.zip -d /opt/jadx
     chmod +x /opt/jadx/bin/*
-    ln -s /opt/jadx/bin/jadx /usr/local/bin/jadx
+    ln -sf /opt/jadx/bin/jadx /usr/local/bin/jadx
     rm /tmp/jadx.zip
 fi
 
