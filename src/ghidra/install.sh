@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 
 VERSION=${VERSION:-"latest"}
-
 USERNAME=${USERNAME:-${_REMOTE_USER:-"automatic"}}
+MCP_SERVER=${MCPSERVER:-"ghidramcp"}
+
+case "${MCP_SERVER}" in
+    ghidramcp|ghidrassist) ;;
+    *) echo "(!) Unknown MCPSERVER '${MCP_SERVER}' (supported: ghidramcp, ghidrassist)" >&2; exit 1 ;;
+esac
 
 set -e
 
@@ -132,14 +137,14 @@ if [ "${RESOLVE_VERSION}" != "none" ]; then
     mv /opt/ghidra/ghidra*/* /opt/ghidra
     GHIDRA_INSTALL_DIR="/opt/ghidra"
 
-    # --- GhidraMCP: extension + MCP bridge (bethington fork) ----------------
-    # The MCP server has two halves: a Ghidra extension that exposes an HTTP
-    # API, and a python bridge that speaks MCP over stdio. Headless Ghidra
-    # auto-enables extensions placed in Ghidra/Extensions, so unpacking the
-    # zip there is all that is needed. The bridge is installed system-wide via
-    # `uv tool` (self-provisioned: features run at build time, before any
-    # post-create uv), with tool dirs relocated out of /root so the vscode
-    # user can execute /usr/local/bin/bridge-mcp-ghidra.
+    # --- MCP server stack (option MCPSERVER) ---------------------------------
+    # ghidramcp:  bethington fork - GhidraMCP extension + python bridge (uv),
+    #             HTTP API on :8089. Pinned release built against 12.1.4.
+    # ghidrassist: symgraph/GhidrAssistMCP - native MCP server extension, no
+    #             bridge; HTTP on :8080 (SSE + streamable). Release assets are
+    #             built per Ghidra version, so the asset matching the installed
+    #             Ghidra minor version is selected dynamically.
+    if [ "${MCP_SERVER}" = "ghidramcp" ]; then
     GHIDRA_MCP_RELEASE="v7.0.0"   # extension.properties says built for Ghidra 12.1.4;
                                    # bump when a release targets the newer installed Ghidra
     ghidra_mcp_ver="${GHIDRA_MCP_RELEASE#v}"
@@ -161,6 +166,28 @@ if [ "${RESOLVE_VERSION}" != "none" ]; then
     export UV_TOOL_DIR=/opt/uv-tools UV_TOOL_BIN_DIR=/usr/local/bin
     uv tool install "${bridge_wheel}"
     rm -f "${bridge_wheel}"
+
+    elif [ "${MCP_SERVER}" = "ghidrassist" ]; then
+        # Native MCP server extension - no separate bridge. Release assets are
+        # built per Ghidra minor version (ghidra_<major.minor>_PUBLIC_...zip).
+        ghidra_mm="$(printf '%s' "${RESOLVE_VERSION}" | cut -d. -f1-2)"
+        mm_pattern="${ghidra_mm//./\.}"
+        echo "Resolving GhidrAssistMCP for Ghidra ${ghidra_mm}..."
+        ga_url="$(curl -fsSL "https://api.github.com/repos/symgraph/GhidrAssistMCP/releases?per_page=30" \
+            | grep -oE '"browser_download_url":[[:space:]]*"[^"]*"' \
+            | grep -oE "https://[^\"]*ghidra_${mm_pattern}_PUBLIC_[^\"]*GhidrAssistMCP[^\"]*\.zip" \
+            | head -n 1)"
+        if [ -z "${ga_url}" ]; then
+            echo "(!) No GhidrAssistMCP release found for Ghidra ${ghidra_mm}." >&2
+            echo "    Check https://github.com/symgraph/GhidrAssistMCP/releases for available versions." >&2
+            exit 1
+        fi
+        echo "Installing GhidrAssistMCP from ${ga_url}..."
+        curl -fsSL "${ga_url}" -o /tmp/GhidrAssistMCP.zip
+        mkdir -p /opt/ghidra/Ghidra/Extensions
+        unzip -qo /tmp/GhidrAssistMCP.zip -d /opt/ghidra/Ghidra/Extensions
+        rm -f /tmp/GhidrAssistMCP.zip
+    fi
 
     # --- PyGhidra enrollment -------------------------------------------------
     # Ghidra's Python support needs one-time enrollment: a dedicated venv under
